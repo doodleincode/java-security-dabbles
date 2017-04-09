@@ -46,10 +46,10 @@ final public class AESLib {
 	private static final String CIPHER_TRANSFORMATION = "AES/CBC/PKCS5Padding";
     private static final String CIPHER = "AES";
     private static final int AES_KEY_LENGTH_BITS = 128;
-    private static final int IV_LENGTH_BYTES = 16;
+    private static final int IV_LENGTH_BYTES = AES_KEY_LENGTH_BITS / 8;
     
     // For our PBKDF2
-    private static final int PBE_ITERATIONS = 40000;
+    private static final int PBE_ROUNDS = 40000;
     private static final int PBE_SALT_LENGTH_BYTES = 16;
     private static final String PBE_ALGORITHM = "PBKDF2WithHmacSHA1";
 
@@ -58,10 +58,12 @@ final public class AESLib {
     private static final int HMAC_KEY_LENGTH_BITS = 256;
     
     /**
-     * Generate a cryptographically strong key from a password/known string
+     * Generate a key suitable for cryptographic usage from a password/known string using PBKDF2.
+     * 
+     * This will use a default of 40,000 rounds.
      * 
      * @param password
-     * 				The password or known string that will be used to generate a cryptographically strong key
+     * 				The password or known string that will be used to generate a cryptographic key
      * @param salt
      * 				Random salt. Use {@link AESLib#generateSalt()}
      * @return
@@ -71,8 +73,27 @@ final public class AESLib {
     public static CipherIntegrityKeyPair generateKeyFromPassword(String password, byte[] salt) 
     		throws GeneralSecurityException {
     	
-    	KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt,
-                PBE_ITERATIONS, AES_KEY_LENGTH_BITS + HMAC_KEY_LENGTH_BITS);
+    	return generateKeyFromPassword(password, salt, PBE_ROUNDS);
+    }
+    
+    /**
+     * Generate a key suitable for cryptographic usage from a password/known string using PBKDF2.
+     * 
+     * @param password
+     * 				The password or known string that will be used to generate a cryptographic key
+     * @param salt
+     * 				Random salt. Use {@link AESLib#generateSalt()}
+     * @param rounds
+     * 				Number of times to iterate over the hashing algorithm when generating the key
+     * @return
+     * 				A CipherIntegrityKeyPair object to be used for encryption/decryption
+     * @throws GeneralSecurityException
+     */
+    public static CipherIntegrityKeyPair generateKeyFromPassword(String password, byte[] salt, int rounds) 
+    		throws GeneralSecurityException {
+    	
+    	KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, rounds, 
+    			AES_KEY_LENGTH_BITS + HMAC_KEY_LENGTH_BITS);
 		SecretKeyFactory keyFactory = SecretKeyFactory
 		        .getInstance(PBE_ALGORITHM);
 		
@@ -86,12 +107,12 @@ final public class AESLib {
         return new CipherIntegrityKeyPair(
         		new SecretKeySpec(cipherKeyBytes, CIPHER),
         		new SecretKeySpec(hmacKeyBytes, HMAC_ALGORITHM)
-        	);
+        	); 
     }
     
     /**
-     * Encrypts the given plain text string with the given key. This method embedded a HMAC for
-     * integrity validation when decrypting.
+     * Encrypts the given plain text string with the given key. This method will calculate the
+     * HMAC for the cipher text and return it as part of the results.
      * 
      * @param plainText
      * 				The plain text string to encrypt
@@ -109,6 +130,9 @@ final public class AESLib {
     }
     
     /**
+     * Encrypts the given plain text string with the given key. This method will calculate the
+     * HMAC for the cipher text and return it as part of the results.
+     * 
      * Same as {@link AESLib#encrypt(String, CipherIntegrityKeyPair)} but accepts a byte array plain text
      * 
      * @param plainText
