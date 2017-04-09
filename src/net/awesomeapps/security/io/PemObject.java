@@ -16,9 +16,7 @@ public class PemObject {
 		
 		@Override
 		public String toString() {
-			switch (this) {
-				default: return this.name().replaceAll("_", " ");
-			}
+			return name().replaceAll("_", " ");
 		}
 	}
 	
